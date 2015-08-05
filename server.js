@@ -637,26 +637,32 @@ camp.route(/^\/sonar\/(http|https)\/(.*)\/(.*)\/(.*)\.(svg|png|gif|jpg|json)$/,
       var metricName = match[4];
       var format = match[5];
 
+      var authorization;
+      var _headers = {};
+      _headers["Accept"] = "application/json";
+
+      if (serverSecrets && serverSecrets.sonar_username && serverSecrets.sonar_password) {
+        _headers["Authorization"] = "Basic " + new Buffer(serverSecrets.sonar_username + ":" + serverSecrets.sonar_password).toString("base64");
+      }
+
       var sonarMetricName = metricName;
 
       if (metricName === 'tech_debt') {
         //special condition for backwards compatibility
         sonarMetricName = 'sqale_debt_ratio';
       }
-
       var apiUrl = scheme + '://' + serverUrl + '/api/resources?resource=' + buildType
           + '&depth=0&metrics=' + encodeURIComponent(sonarMetricName) + '&includetrends=true';
 
       var badgeData = getBadgeData(metricName.replace(/_/g, ' '), data);
 
-      request(apiUrl, { headers: { 'Accept': 'application/json' } }, function(err, res, buffer) {
+      request(apiUrl, {headers: _headers}, function(err, res, buffer) {
         if (err != null) {
           badgeData.text[1] = 'inaccessible';
           sendBadge(format, badgeData);
         }
         try {
           var data = JSON.parse(buffer);
-
           var value = data[0].msr[0].val;
 
           if (value === undefined) {
